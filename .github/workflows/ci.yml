@@ -25,12 +25,11 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          # proton is installed via apt above; add site-packages to path
-          pip install --quiet \
-            numpy \
-            torch --index-url https://download.pytorch.org/whl/cpu \
-            torchaudio --index-url https://download.pytorch.org/whl/cpu \
-            faster-whisper
+          # Install torch/torchaudio CPU wheels first, then everything else
+          pip install --quiet numpy
+          pip install --quiet torch torchaudio \
+            --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet faster-whisper
 
       - name: Import check
         run: |
