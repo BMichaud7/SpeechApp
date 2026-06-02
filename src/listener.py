@@ -19,6 +19,7 @@ import proton.reactor
 from .config import AppConfig
 from .vad import VoiceDetector
 from .transcriber import Transcriber, TranscriptionResult
+from .transcript_store import TranscriptStore
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _decode_pcm_f32le(b64: str, num_samples: int) -> np.ndarray:
 
 class _Handler(proton.handlers.MessagingHandler):
     def __init__(self, cfg: AppConfig,
-                 on_result: Callable[[dict, TranscriptionResult], None]) -> None:
+                 on_result: Callable[[dict, TranscriptionResult, float], None]) -> None:
         super().__init__()
         self._cfg       = cfg
         self._on_result = on_result
@@ -103,22 +104,31 @@ class _Handler(proton.handlers.MessagingHandler):
             log.error("Transcription failed: %s", e)
             return
 
-        self._on_result(msg, result)
+        self._on_result(msg, result, prob)
 
 
 class DemodListener:
     """
-    Passive AMQP listener that detects speech in demodulated audio and
-    transcribes it using Whisper.
-
-    Starts a background thread; call stop() to shut down cleanly.
+    Passive AMQP listener that detects speech in demodulated audio,
+    transcribes it, and persists results to a rolling text log + SQLite DB.
     """
 
     def __init__(self, cfg: AppConfig) -> None:
-        self._cfg = cfg
+        self._cfg   = cfg
+        self._store = (
+            TranscriptStore(
+                dir_path    = cfg.transcript.dir,
+                db_path     = cfg.transcript.db_path,
+                rotate_days = cfg.transcript.rotate_days,
+            ) if cfg.transcript.enabled else None
+        )
+        if self._store:
+            log.info("Transcripts → %s", cfg.transcript.db_path)
 
-    def _on_result(self, msg: dict, result: TranscriptionResult) -> None:
-        cf_mhz = msg.get("center_freq_hz", 0) / 1e6
+    def _on_result(self, msg: dict, result: TranscriptionResult,
+                   vad_prob: float) -> None:
+        cf_hz  = msg.get("center_freq_hz", 0)
+        cf_mhz = cf_hz / 1e6
         mod    = msg.get("modulation", "?")
         ts_ms  = msg.get("timestamp_ms", 0)
 
@@ -127,25 +137,39 @@ class DemodListener:
             "│  %s\n"
             "└─",
             cf_mhz, mod, result.language, result.language_probability,
-            result.text or "(no speech detected)",
+            result.text or "(unintelligible)",
         )
 
-        if not result.text:
-            return
-
-        # Detailed segment log at debug level
         for seg in result.segments:
             log.debug("  [%.1fs–%.1fs] %s", seg["start"], seg["end"], seg["text"])
 
-        # Future: publish to rf.speech if enabled
+        if self._store and result.text.strip():
+            self._store.save(
+                ts_ms      = ts_ms or int(__import__("time").time() * 1000),
+                freq_hz    = cf_hz,
+                modulation = mod,
+                language   = result.language,
+                lang_prob  = result.language_probability,
+                vad_prob   = vad_prob,
+                duration_s = result.duration_s,
+                text       = result.text,
+            )
+
         if self._cfg.transcriber.publish_enabled:
-            log.debug("(publish to %s not yet wired)", self._cfg.amqp.speech_topic)
+            log.debug("(rf.speech publish not yet wired)")
 
     def run(self) -> None:
         """Block until interrupted."""
-        handler   = _Handler(self._cfg, self._on_result)
+        # Wrap _on_result to pass vad_prob through from _Handler
+        def on_result_with_vad(msg, result, vad_prob):
+            self._on_result(msg, result, vad_prob)
+
+        handler   = _Handler(self._cfg, on_result_with_vad)
         container = proton.reactor.Container(handler)
         try:
             container.run()
         except KeyboardInterrupt:
             pass
+        finally:
+            if self._store:
+                self._store.close()

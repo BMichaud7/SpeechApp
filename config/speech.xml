@@ -20,6 +20,17 @@
     <min_silence_ms>100</min_silence_ms>
   </vad>
 
+  <transcript>
+    <!-- Set enabled=false to disable persistence entirely -->
+    <enabled>true</enabled>
+    <!-- Directory for daily rolling text logs (transcript_YYYY-MM-DD.txt) -->
+    <dir>/var/log/sdr-speech</dir>
+    <!-- SQLite database for queryable history -->
+    <db_path>/var/log/sdr-speech/transcripts.db</db_path>
+    <!-- Delete text logs older than this many days (DB is kept indefinitely) -->
+    <rotate_days>30</rotate_days>
+  </transcript>
+
   <transcriber>
     <!-- faster-whisper model size: tiny | base | small | medium | large -->
     <model>base</model>

@@ -31,10 +31,19 @@ class TranscriberConfig:
 
 
 @dataclass
+class TranscriptConfig:
+    enabled: bool = True
+    dir: str = "/var/log/sdr-speech"   # directory for transcript files
+    db_path: str = "/var/log/sdr-speech/transcripts.db"  # SQLite
+    rotate_days: int = 30              # keep this many days of text logs
+
+
+@dataclass
 class AppConfig:
     amqp: AmqpConfig = field(default_factory=AmqpConfig)
     vad: VadConfig = field(default_factory=VadConfig)
     transcriber: TranscriberConfig = field(default_factory=TranscriberConfig)
+    transcript: TranscriptConfig = field(default_factory=TranscriptConfig)
 
     @staticmethod
     def from_xml(path: str) -> "AppConfig":
@@ -53,6 +62,12 @@ class AppConfig:
             if (t := v.findtext("threshold")):       cfg.vad.threshold = float(t)
             if (t := v.findtext("min_speech_ms")):   cfg.vad.min_speech_ms = int(t)
             if (t := v.findtext("min_silence_ms")):  cfg.vad.min_silence_ms = int(t)
+
+        if (t2 := root.find("transcript")) is not None:
+            if (v := t2.findtext("enabled")):    cfg.transcript.enabled = v.lower() not in ("false","0","no")
+            if (v := t2.findtext("dir")):         cfg.transcript.dir = v
+            if (v := t2.findtext("db_path")):     cfg.transcript.db_path = v
+            if (v := t2.findtext("rotate_days")): cfg.transcript.rotate_days = int(v)
 
         if (t := root.find("transcriber")) is not None:
             if (v := t.findtext("model")):            cfg.transcriber.model = v
