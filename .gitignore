@@ -1,10 +1,9 @@
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-*.log
+build/
 *.db
 *.db-shm
 *.db-wal
-.env
+*.log
 models/
+*.bin
+compile_commands.json
+.cache/

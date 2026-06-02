@@ -8,29 +8,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint-and-test:
+  build-and-test:
     runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends python3-qpid-proton
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config git \
+            libqpid-proton-cpp12-dev \
+            libqpid-proton-dev \
+            libtinyxml2-dev \
+            libsqlite3-dev \
+            libfmt-dev
 
-      - name: Install Python dependencies
+      - name: Configure
         run: |
-          pip install --quiet numpy pytest pytest-mock scipy
-          pip install --quiet torch torchaudio \
-            --index-url https://download.pytorch.org/whl/cpu
-          pip install --quiet faster-whisper gtts pyav
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DFETCHCONTENT_QUIET=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
 
       - name: Run unit tests
-        run: |
-          export PYTHONPATH="/usr/lib/python3/dist-packages:."
-          pytest tests/ -v --tb=short
+        # Skip WhisperTranscriber tests — model file not present in CI
+        # Config, VAD, Resampler, TranscriptStore tests run without model
+        run: ctest --test-dir build --output-on-failure -V --timeout 60 \
+               -E "Whisper"
