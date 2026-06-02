@@ -5,6 +5,7 @@
 #include "TranscriptStore.hpp"
 
 #include <proton/connection.hpp>
+#include <proton/connection_options.hpp>
 #include <proton/container.hpp>
 #include <proton/delivery.hpp>
 #include <proton/message.hpp>
