@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: ["main/1.0"]
+  pull_request:
+    branches: ["main/1.0"]
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet \
+            python-qpid-proton \
+            numpy \
+            torch --index-url https://download.pytorch.org/whl/cpu \
+            torchaudio --index-url https://download.pytorch.org/whl/cpu \
+            faster-whisper
+
+      - name: Import check
+        run: |
+          python -c "from src.config import AppConfig; print('config OK')"
+          python -c "from src.transcriber import Transcriber; print('transcriber OK')"
+          python -c "
+          from src.config import AppConfig
+          cfg = AppConfig.from_xml('config/speech.xml')
+          assert cfg.amqp.demod_topic == 'rf.demod'
+          assert cfg.vad.threshold == 0.5
+          assert cfg.transcriber.model == 'base'
+          print('config parse OK')
+          "
+
+      - name: Smoke-test transcriber (tiny model, CPU)
+        run: |
+          python -c "
+          import numpy as np
+          from src.transcriber import Transcriber
+          t = Transcriber(model='tiny', device='cpu', compute_type='int8')
+          silence = np.zeros(16000, dtype=np.float32)
+          r = t.transcribe(silence, 16000)
+          print(f'Transcriber OK: text={repr(r.text)!r} lang={r.language}')
+          "
