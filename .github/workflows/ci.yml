@@ -25,39 +25,12 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          # Install torch/torchaudio CPU wheels first, then everything else
-          pip install --quiet numpy
+          pip install --quiet numpy pytest pytest-mock scipy
           pip install --quiet torch torchaudio \
             --index-url https://download.pytorch.org/whl/cpu
-          pip install --quiet faster-whisper
+          pip install --quiet faster-whisper gtts pyav
 
-      - name: Import check
-        run: |
-          # Include apt-installed proton on the path
-          SITE=$(python -c "import site; print(site.getsitepackages()[0])")
-          PYVER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-          export PYTHONPATH="/usr/lib/python3/dist-packages:$SITE:."
-          python -c "from src.config import AppConfig; print('config OK')"
-          python -c "from src.transcriber import Transcriber; print('transcriber OK')"
-          python -c "
-          import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages')
-          from src.config import AppConfig
-          cfg = AppConfig.from_xml('config/speech.xml')
-          assert cfg.amqp.demod_topic == 'rf.demod'
-          assert cfg.vad.threshold == 0.5
-          assert cfg.transcriber.model == 'base'
-          print('config parse OK')
-          "
-
-      - name: Smoke-test transcriber (tiny model, CPU)
+      - name: Run unit tests
         run: |
           export PYTHONPATH="/usr/lib/python3/dist-packages:."
-          python -c "
-          import numpy as np
-          from src.transcriber import Transcriber
-          t = Transcriber(model='tiny', device='cpu', compute_type='int8')
-          silence = np.zeros(16000, dtype=np.float32)
-          r = t.transcribe(silence, 16000)
-          print(f'Transcriber OK: text={repr(r.text)} lang={r.language}')
-          assert r.language is not None
-          "
+          pytest tests/ -v --tb=short

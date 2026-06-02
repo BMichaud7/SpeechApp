@@ -12,10 +12,10 @@ import threading
 from typing import Callable
 
 import numpy as np
-import proton
-import proton.handlers
-import proton.reactor
 
+# proton is imported lazily inside DemodListener.run() so the rest of the
+# module (message parsing, VAD, transcription) can be imported and tested
+# without a live proton installation.
 from .config import AppConfig
 from .vad import VoiceDetector
 from .transcriber import Transcriber, TranscriptionResult
@@ -30,10 +30,12 @@ def _decode_pcm_f32le(b64: str, num_samples: int) -> np.ndarray:
     return np.frombuffer(raw, dtype="<f4")[:num_samples].astype(np.float32)
 
 
-class _Handler(proton.handlers.MessagingHandler):
+class _Handler:
+    """Proton MessagingHandler — base class resolved lazily at runtime."""
     def __init__(self, cfg: AppConfig,
                  on_result: Callable[[dict, TranscriptionResult, float], None]) -> None:
-        super().__init__()
+        import proton.handlers
+        proton.handlers.MessagingHandler.__init__(self)
         self._cfg       = cfg
         self._on_result = on_result
         self._vad       = VoiceDetector(
@@ -49,7 +51,8 @@ class _Handler(proton.handlers.MessagingHandler):
             beam_size    = cfg.transcriber.beam_size,
         )
 
-    def on_start(self, event: proton.Event) -> None:
+    def on_start(self, event) -> None:
+        import proton.reactor
         conn = event.container.connect(
             self._cfg.amqp.url,
             user=self._cfg.amqp.username or None,
@@ -60,7 +63,7 @@ class _Handler(proton.handlers.MessagingHandler):
         log.info("Listening on %s → %s",
                  self._cfg.amqp.url, self._cfg.amqp.demod_topic)
 
-    def on_message(self, event: proton.Event) -> None:
+    def on_message(self, event) -> None:
         try:
             msg = json.loads(event.message.body)
         except Exception:
@@ -164,6 +167,9 @@ class DemodListener:
         def on_result_with_vad(msg, result, vad_prob):
             self._on_result(msg, result, vad_prob)
 
+        import proton, proton.handlers, proton.reactor
+        # Make _Handler inherit from the real MessagingHandler at runtime
+        _Handler.__bases__ = (proton.handlers.MessagingHandler,)
         handler   = _Handler(self._cfg, on_result_with_vad)
         container = proton.reactor.Container(handler)
         try:
