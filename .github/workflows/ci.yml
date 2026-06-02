@@ -18,10 +18,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends python3-qpid-proton
+
+      - name: Install Python dependencies
+        run: |
+          # proton is installed via apt above; add site-packages to path
           pip install --quiet \
-            python-qpid-proton \
             numpy \
             torch --index-url https://download.pytorch.org/whl/cpu \
             torchaudio --index-url https://download.pytorch.org/whl/cpu \
@@ -29,9 +34,14 @@ jobs:
 
       - name: Import check
         run: |
+          # Include apt-installed proton on the path
+          SITE=$(python -c "import site; print(site.getsitepackages()[0])")
+          PYVER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+          export PYTHONPATH="/usr/lib/python3/dist-packages:$SITE:."
           python -c "from src.config import AppConfig; print('config OK')"
           python -c "from src.transcriber import Transcriber; print('transcriber OK')"
           python -c "
+          import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages')
           from src.config import AppConfig
           cfg = AppConfig.from_xml('config/speech.xml')
           assert cfg.amqp.demod_topic == 'rf.demod'
@@ -42,11 +52,13 @@ jobs:
 
       - name: Smoke-test transcriber (tiny model, CPU)
         run: |
+          export PYTHONPATH="/usr/lib/python3/dist-packages:."
           python -c "
           import numpy as np
           from src.transcriber import Transcriber
           t = Transcriber(model='tiny', device='cpu', compute_type='int8')
           silence = np.zeros(16000, dtype=np.float32)
           r = t.transcribe(silence, 16000)
-          print(f'Transcriber OK: text={repr(r.text)!r} lang={r.language}')
+          print(f'Transcriber OK: text={repr(r.text)} lang={r.language}')
+          assert r.language is not None
           "
