@@ -35,11 +35,17 @@ public:
         : cfg_(cfg), vad_(vad), stt_(stt), store_(store) {}
 
     void on_container_start(proton::container& c) override {
-        proton::connection_options opts;
-        if (!cfg_.amqp.username.empty()) opts.user(cfg_.amqp.username);
-        if (!cfg_.amqp.password.empty()) opts.password(cfg_.amqp.password);
-        opts.reconnect(proton::reconnect_options());
-        c.open_receiver(cfg_.amqp.url + "/" + cfg_.amqp.demod_topic, opts);
+        // Build receiver address: broker_url/topic
+        std::string addr = cfg_.amqp.url + "/" + cfg_.amqp.demod_topic;
+        proton::receiver_options ropts;
+        ropts.source(proton::source_options().address(cfg_.amqp.demod_topic));
+
+        // Connect with credentials, then open receiver
+        proton::connection_options copts;
+        if (!cfg_.amqp.username.empty()) copts.user(cfg_.amqp.username);
+        if (!cfg_.amqp.password.empty()) copts.password(cfg_.amqp.password);
+        c.connect(cfg_.amqp.url, copts).open_receiver(
+            cfg_.amqp.demod_topic, ropts);
         spdlog::info("Listening on {} → {}", cfg_.amqp.url, cfg_.amqp.demod_topic);
     }
 
