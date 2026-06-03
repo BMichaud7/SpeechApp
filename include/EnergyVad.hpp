@@ -1,3 +1,7 @@
+/**
+ * @file EnergyVad.hpp
+ * @brief 
+ */
 #pragma once
 #include <vector>
 

@@ -1,3 +1,7 @@
+/**
+ * @file Base64.hpp
+ * @brief 
+ */
 #pragma once
 #include <string>
 #include <vector>
