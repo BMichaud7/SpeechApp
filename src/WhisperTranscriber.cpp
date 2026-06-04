@@ -92,3 +92,11 @@ TranscriptionResult WhisperTranscriber::transcribe(const float* pcm16k, int n_sa
 }
 
 } // namespace speech
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

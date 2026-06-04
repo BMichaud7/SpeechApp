@@ -120,3 +120,11 @@ TEST_F(TranscriptStoreTest, MultipleEntriesAppend) {
     EXPECT_NE(content.find("first message"),  std::string::npos);
     EXPECT_NE(content.find("second message"), std::string::npos);
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

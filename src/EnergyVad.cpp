@@ -35,3 +35,11 @@ EnergyVad::Result EnergyVad::check(const float* pcm, int n_samples, int sample_r
 }
 
 } // namespace speech
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

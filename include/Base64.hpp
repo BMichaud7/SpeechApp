@@ -53,3 +53,11 @@ inline std::vector<uint8_t> decode(const std::string& in) {
 }
 
 } // namespace speech::base64
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

@@ -23,3 +23,11 @@ namespace speech {
 std::vector<float> resample(const float* in, int n_in, int src_rate, int dst_rate);
 
 } // namespace speech
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

@@ -24,3 +24,9 @@ URL="${BASE_URL}/${FILE}"
 echo "Downloading ${FILE} → ${DEST}/${FILE}"
 curl -L --progress-bar "$URL" -o "${DEST}/${FILE}"
 echo "Done: $(du -h "${DEST}/${FILE}" | cut -f1)"
+
+# ========================================================================
+# End of file — OpenRFStack
+# Subject to Personal Use License
+# https://github.com/OpenRFStack
+# ========================================================================

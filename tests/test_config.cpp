@@ -95,3 +95,11 @@ TEST(Config, PartialConfigKeepsDefaults) {
     EXPECT_FLOAT_EQ(cfg.vad.energy_threshold_db, -35.0f);  // default preserved
     EXPECT_EQ(cfg.transcriber.n_threads, 4);
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

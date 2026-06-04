@@ -183,3 +183,11 @@ void TranscriptStore::rotate_old_logs(const std::string& today) const {
 }
 
 } // namespace speech
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

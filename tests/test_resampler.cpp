@@ -70,3 +70,11 @@ TEST(Resampler, ToneFrequencyPreserved) {
         if ((out[i-1] < 0) != (out[i] < 0)) ++crossings;
     EXPECT_NEAR(crossings, 880, 20);
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

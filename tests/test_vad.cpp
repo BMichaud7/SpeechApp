@@ -115,3 +115,11 @@ TEST(EnergyVad, CustomThresholdRespected) {
         EXPECT_TRUE(det);    // -20 > -30 → detected
     }
 }
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/

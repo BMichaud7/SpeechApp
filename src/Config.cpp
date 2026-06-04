@@ -81,3 +81,11 @@ AppConfig AppConfig::from_xml(const std::string& path) {
 }
 
 } // namespace speech
+
+/*
+========================================================================
+End of file — OpenRFStack
+Subject to Personal Use License
+https://github.com/OpenRFStack
+========================================================================
+*/
