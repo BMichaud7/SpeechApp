@@ -56,6 +56,8 @@ jobs:
           fi
           echo "Found binary: $BIN"
           mkdir -p rpm_out
+          WHISPER_LIBS=$(find build/_deps/whisper_cpp-build -name 'lib*.so*' ! -name '*.a' 2>/dev/null)
+          WHISPER_ARGS=(); for lib in $WHISPER_LIBS; do WHISPER_ARGS+=("${lib}=/usr/lib64/$(basename ${lib})"); done
           fpm -s dir -t rpm \
             -n sdr-speech \
             -v "${VERSION}" \
@@ -65,7 +67,8 @@ jobs:
             --url "https://github.com/OpenRFStack/SpeechApp" \
             --license "Proprietary" \
             --package rpm_out/ \
-            "${BIN}=/usr/bin/sdr_speech"
+            "${BIN}=/usr/bin/sdr_speech" \
+            "${WHISPER_ARGS[@]}"
           ls -lh rpm_out/
 
       - name: Upload to GitHub Release
