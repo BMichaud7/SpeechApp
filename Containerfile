@@ -16,7 +16,7 @@ FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
-        cmake ninja-build pkg-config git ca-certificates curl \
+        build-essential cmake ninja-build pkg-config git ca-certificates curl \
         libqpid-proton-cpp12-dev libqpid-proton-dev \
         libtinyxml2-dev libsqlite3-dev libfmt-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -38,10 +38,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
         libqpid-proton-cpp12 libqpid-proton11 \
         libtinyxml2-10 libsqlite3-0 \
+        libgomp1 \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /install/bin/sdr_speech /usr/local/bin/sdr_speech
+COPY --from=builder /workspace/build/_deps/whisper_cpp-build/src/libwhisper.so.1 /usr/local/lib/libwhisper.so.1
+COPY --from=builder /workspace/build/_deps/whisper_cpp-build/ggml/src/libggml.so /usr/local/lib/libggml.so
+COPY --from=builder /workspace/build/_deps/whisper_cpp-build/ggml/src/libggml-base.so /usr/local/lib/libggml-base.so
+COPY --from=builder /workspace/build/_deps/whisper_cpp-build/ggml/src/libggml-cpu.so /usr/local/lib/libggml-cpu.so
+RUN ln -s /usr/local/lib/libwhisper.so.1 /usr/local/lib/libwhisper.so && ldconfig
 RUN mkdir -p /etc/sdr-speech/models /var/log/sdr-speech
 COPY config/speech.xml /etc/sdr-speech/speech.xml
 
