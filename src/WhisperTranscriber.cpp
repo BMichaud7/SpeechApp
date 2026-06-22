@@ -27,8 +27,19 @@ WhisperTranscriber::WhisperTranscriber(const std::string& model_path,
 {
     whisper_context_params cparams = whisper_context_default_params();
     ctx_ = whisper_init_from_file_with_params(model_path.c_str(), cparams);
-    if (!ctx_)
-        throw std::runtime_error("WhisperTranscriber: failed to load model: " + model_path);
+    if (!ctx_) {
+        // Speech transcription is an opt-in feature (WHISPER_MODEL is unset
+        // by default in entrypoint.sh) -- a missing model is the EXPECTED
+        // state on a fresh install, not a fatal error. Throwing here used to
+        // take main()'s top-level catch down with exit(1), which the
+        // supervisor in entrypoint.sh restarted every 3s forever: a
+        // permanent crash-loop for an intentionally-disabled feature.
+        // transcribe() already safely no-ops on ctx_==nullptr, so just stay
+        // alive disabled, matching OnnxClassifier's "disabled (no model
+        // path configured)" pattern instead of crash-looping.
+        spdlog::warn("WhisperTranscriber: disabled (model not found: {})", model_path);
+        return;
+    }
     spdlog::info("WhisperTranscriber: model loaded from {}", model_path);
 }
 

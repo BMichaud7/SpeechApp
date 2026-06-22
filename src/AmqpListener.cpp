@@ -138,6 +138,9 @@ void run_listener(const AppConfig& cfg) {
                            cfg.transcriber.language,
                            cfg.transcriber.n_threads,
                            cfg.transcriber.translate);
+    if (!stt.loaded())
+        spdlog::info("SpeechApp: transcription disabled — listener still running "
+                     "(received demod audio will be ignored)");
 
     std::unique_ptr<TranscriptStore> store;
     if (cfg.transcript.enabled)

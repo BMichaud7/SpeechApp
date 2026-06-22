@@ -68,7 +68,10 @@ public:
      * @param language   Force a specific language (e.g. "en"). Empty = auto-detect.
      * @param n_threads  CPU thread count for inference.
      * @param translate  If true, translate non-English speech to English.
-     * @throws std::runtime_error if the model file cannot be loaded.
+     *
+     * Does not throw if the model fails to load -- check loaded() instead.
+     * A missing model is the expected state when WHISPER_MODEL is unset
+     * (transcription is opt-in); transcribe() safely no-ops in that case.
      */
     explicit WhisperTranscriber(const std::string& model_path,
                                 const std::string& language   = "",
