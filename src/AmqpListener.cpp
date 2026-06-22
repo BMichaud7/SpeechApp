@@ -51,6 +51,14 @@ public:
         proton::connection_options copts;
         if (!cfg_.amqp.username.empty()) copts.user(cfg_.amqp.username);
         if (!cfg_.amqp.password.empty()) copts.password(cfg_.amqp.password);
+        // Without this, a failed initial connection (Artemis not up yet) is
+        // permanent -- speech transcription would silently never receive
+        // demod audio again after one bad boot timing.
+        proton::reconnect_options reconn_opts;
+        reconn_opts.delay(proton::duration(2000));
+        reconn_opts.max_delay(proton::duration(30000));
+        reconn_opts.max_attempts(0);
+        copts.reconnect(reconn_opts);
         c.connect(cfg_.amqp.url, copts);
     }
 
