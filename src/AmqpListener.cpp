@@ -49,7 +49,20 @@ public:
 
     void on_container_start(proton::container& c) override {
         proton::connection_options copts;
-        if (!cfg_.amqp.username.empty()) copts.user(cfg_.amqp.username);
+        if (!cfg_.amqp.username.empty()) {
+            // Without explicitly allowing PLAIN (and the insecure-mechs flag
+            // PLAIN requires without TLS), proton never actually negotiates
+            // the username/password onto the wire -- Artemis then sees an
+            // anonymous connection and rejects it with AMQ229031 "Unable to
+            // validate user ... Username: null", even though .user()/.password()
+            // were set. Confirmed live: this was masked for the entire
+            // lifetime of this file by an unrelated earlier crash (the
+            // WhisperTranscriber model-load throw) that always killed the
+            // process before execution ever reached this connect() call.
+            copts.sasl_allowed_mechs("PLAIN");
+            copts.sasl_allow_insecure_mechs(true);
+            copts.user(cfg_.amqp.username);
+        }
         if (!cfg_.amqp.password.empty()) copts.password(cfg_.amqp.password);
         // Without this, a failed initial connection (Artemis not up yet) is
         // permanent -- speech transcription would silently never receive
