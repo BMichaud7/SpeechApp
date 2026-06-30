@@ -34,6 +34,10 @@ Contact author for permission: https://github.com/OpenRFStack
 #include <cstring>
 #include <stdexcept>
 #include <chrono>
+#include <mutex>
+#include <queue>
+#include <condition_variable>
+#include <thread>
 
 using json = nlohmann::json;
 
@@ -45,7 +49,19 @@ public:
                  EnergyVad& vad,
                  WhisperTranscriber& stt,
                  TranscriptStore* store)
-        : cfg_(cfg), vad_(vad), stt_(stt), store_(store) {}
+        : cfg_(cfg), vad_(vad), stt_(stt), store_(store)
+    {
+        worker_ = std::thread([this]{ workerLoop(); });
+    }
+
+    ~DemodHandler() {
+        {
+            std::lock_guard<std::mutex> lk(work_mu_);
+            stopping_ = true;
+        }
+        work_cv_.notify_one();
+        if (worker_.joinable()) worker_.join();
+    }
 
     void on_container_start(proton::container& c) override {
         proton::connection_options copts;
@@ -84,14 +100,37 @@ public:
 
     void on_message(proton::delivery& d, proton::message& m) override {
         try {
-            handle(json::parse(m.body().get<std::string>()));
+            std::string body = m.body().get<std::string>();
+            {
+                std::lock_guard<std::mutex> lk(work_mu_);
+                work_q_.push(std::move(body));
+            }
+            work_cv_.notify_one();
         } catch (const std::exception& e) {
-            spdlog::warn("Message parse error: {}", e.what());
+            spdlog::warn("Message receive error: {}", e.what());
         }
         d.accept();
     }
 
 private:
+    void workerLoop() {
+        while (true) {
+            std::string body;
+            {
+                std::unique_lock<std::mutex> lk(work_mu_);
+                work_cv_.wait(lk, [this]{ return !work_q_.empty() || stopping_; });
+                if (stopping_ && work_q_.empty()) break;
+                body = std::move(work_q_.front());
+                work_q_.pop();
+            }
+            try {
+                handle(json::parse(body));
+            } catch (const std::exception& e) {
+                spdlog::warn("Message parse error: {}", e.what());
+            }
+        }
+    }
+
     void handle(const json& j) {
         if (j.value("msg_type", "") != "DEMOD_RESULT") return;
         if (j.value("demod_class", "") != "audio")       return;
@@ -151,6 +190,12 @@ private:
     EnergyVad&          vad_;
     WhisperTranscriber& stt_;
     TranscriptStore*    store_;
+
+    std::mutex               work_mu_;
+    std::queue<std::string>  work_q_;
+    std::condition_variable  work_cv_;
+    std::thread              worker_;
+    bool                     stopping_{false};
 };
 
 void run_listener(const AppConfig& cfg) {

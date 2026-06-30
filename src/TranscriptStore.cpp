@@ -111,7 +111,10 @@ void TranscriptStore::save(int64_t ts_ms, double freq_hz,
         "(ts_ms,ts_utc,freq_hz,freq_mhz,modulation,language,lang_prob,energy_db,duration_s,text) "
         "VALUES (?,?,?,?,?,?,?,?,?,?)";
     sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("TranscriptStore: prepare failed: {}", sqlite3_errmsg(db_));
+        return;
+    }
     sqlite3_bind_int64(stmt, 1, ts_ms);
     sqlite3_bind_text (stmt, 2, ts_utc.c_str(),    -1, SQLITE_TRANSIENT);
     sqlite3_bind_double(stmt,3, freq_hz);
@@ -169,16 +172,24 @@ std::string TranscriptStore::log_path(const std::string& date) const {
 }
 
 void TranscriptStore::rotate_old_logs(const std::string& today) const {
-    // Simple: delete logs older than rotate_days_ based on filename date
+    time_t now = time(nullptr);
+    time_t cutoff_t = now - static_cast<time_t>(rotate_days_) * 86400;
+    struct tm tm_val{};
+    gmtime_r(&cutoff_t, &tm_val);
+    char cutoff_buf[12];
+    strftime(cutoff_buf, sizeof(cutoff_buf), "%Y-%m-%d", &tm_val);
+    std::string cutoff(cutoff_buf);
+
     for (auto& e : fs::directory_iterator(dir_)) {
         if (!e.is_regular_file()) continue;
         auto name = e.path().filename().string();
         if (name.rfind("transcript_", 0) != 0) continue;
         if (!name.ends_with(".txt")) continue;
         auto date_part = name.substr(11, 10);  // "YYYY-MM-DD"
-        if (date_part >= today) continue;       // rough cutoff (good enough)
-        // Compare days: just delete if it appears older than rotate_days_
-        // (full date arithmetic omitted for brevity — checked on write only)
+        if (date_part >= today) continue;
+        if (date_part >= cutoff) continue;
+        fs::remove(e.path());
+        spdlog::info("TranscriptStore: rotated {}", name);
     }
 }
 
