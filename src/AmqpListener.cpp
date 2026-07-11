@@ -103,7 +103,11 @@ public:
             std::string body = m.body().get<std::string>();
             {
                 std::lock_guard<std::mutex> lk(work_mu_);
-                work_q_.push(std::move(body));
+                if (work_q_.size() < 8) {
+                    work_q_.push(std::move(body));
+                } else {
+                    spdlog::warn("SpeechApp: transcription backlog full — dropping audio");
+                }
             }
             work_cv_.notify_one();
         } catch (const std::exception& e) {
@@ -140,7 +144,6 @@ private:
         std::string mod    = j.value("modulation",      "?");
         int64_t ts_ms      = j.value("timestamp_ms",    (int64_t)0);
         int     sr         = j.value("sample_rate_hz",  48000);
-        int     n_samp     = j.value("num_samples",     0);
 
         // Decode base64 PCM float32-LE
         auto raw = base64::decode(j["data_b64"].get<std::string>());
