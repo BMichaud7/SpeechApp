@@ -48,7 +48,9 @@ TranscriptStore::TranscriptStore(const std::string& dir,
     : dir_(dir), db_path_(db_path), rotate_days_(rotate_days)
 {
     fs::create_directories(dir_);
-    fs::create_directories(fs::path(db_path_).parent_path());
+    auto db_parent = fs::path(db_path_).parent_path();
+    if (!db_parent.empty())
+        fs::create_directories(db_parent);
     init_db();
     spdlog::info("TranscriptStore: db={}", db_path_);
 }
@@ -125,7 +127,8 @@ void TranscriptStore::save(int64_t ts_ms, double freq_hz,
     sqlite3_bind_double(stmt,8, energy_db);
     sqlite3_bind_double(stmt,9, duration_s);
     sqlite3_bind_text (stmt,10, text.c_str(),      -1, SQLITE_TRANSIENT);
-    sqlite3_step(stmt);
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        spdlog::error("TranscriptStore: insert failed: {}", sqlite3_errmsg(db_));
     sqlite3_finalize(stmt);
 
     // Daily text log

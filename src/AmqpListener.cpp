@@ -145,6 +145,11 @@ private:
         int64_t ts_ms      = j.value("timestamp_ms",    (int64_t)0);
         int     sr         = j.value("sample_rate_hz",  48000);
 
+        if (sr <= 0) {
+            spdlog::warn("handle: invalid sample_rate_hz={} — dropping", sr);
+            return;
+        }
+
         // Decode base64 PCM float32-LE
         auto raw = base64::decode(j["data_b64"].get<std::string>());
         int n_floats = static_cast<int>(raw.size() / sizeof(float));
